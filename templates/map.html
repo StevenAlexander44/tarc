@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>TARC Routes</title>
+	<meta name="description" content="Watch the live locations of TARC vehicles and stops around Louisville">
+	<meta name="viewport" content="width=device-width,initial-scale=1">
+	<link rel="shortcut icon" href="static/bus.ico">
+	<script src="/static/leaflet/leaflet.js"></script>
+	<link rel="stylesheet" href="/static/leaflet/leaflet.css">
+	<base target="_blank">
+	<style>html,body{height:100%;margin:0;}#map{height:100vh;}table{white-space:nowrap;}.leaflet-popup-content:has(table){width:auto !important;}</style>
+</head>
+<body>
+	<div id="map"></div>
+	<script>
+let map=L.map("map",{center:[38.22,-85.7],zoom:12,layers:[L.tileLayer("https://tile.thunderforest.com/transport/{z}/{x}/{y}.png?apikey=cf957cde4a7b40bbb49479c8fa4d60f7")]});
+let stops={{stops|safe}};
+for(let stop in stops){
+	stops[stop][0]=L.circle(stops[stop][0],stops[stop][2]?{color:'blue'}:{}).bindPopup(`${stops[stop][1]} (<a href=${stop}.csv>#${stop}</a>)`).on('click',()=>fetchStop(stop)).addTo(map)
+}
+let busIcon=L.icon({iconUrl:"static/bus.ico",iconSize:[32,32]})
+let layerControl=L.control.layers().addTo(map);
+let busLayers={},busMarkers={};
+function filterRoutes(wanted){
+	for(r in busLayers){
+		!wanted||wanted==r?map.addLayer(busLayers[r]):map.removeLayer(busLayers[r])
+	}
+}
+function fetchStop(s){
+	fetch(s+".csv").then(response=>response.text()).then(csv=>{
+		const table=document.createElement('table');
+		const rows=csv.split('\n');
+		const headerRow=document.createElement('tr');
+		const header=rows[0].split(',');
+		header.forEach(header=>{
+			const th=document.createElement('th');
+			th.textContent=header;
+			headerRow.appendChild(th);
+		});
+		table.appendChild(headerRow);
+		for(let i=1;i<rows.length;i++){
+			const row=rows[i].split(',');
+			const tr=document.createElement('tr');
+			row.forEach(value=>{
+				const td=document.createElement('td');
+				td.textContent=value;
+				tr.appendChild(td);
+			});
+			table.appendChild(tr);
+		}
+		stops[s][0].setPopupContent(`${stops[s][1]} (<a href=${s}.csv>#${s}</a>)${table.outerHTML}`).addTo(map)
+	})
+}
+function updateMap(){
+	let routes={};
+	fetch("tarc.csv").then(response=>response.text()).then(csv=>{
+		csv.split("\n").forEach(line=>{
+			let [lat,lng,r,id,dest,h,s,dir,t]=line.split(",");
+			t=new Date(t*1000).toLocaleTimeString("en-US",{hour12:false});
+			if(!busLayers[r]){busLayers[r]=L.layerGroup().addTo(map)}
+			if(!busMarkers[id]){busMarkers[id]=L.marker([0,0],{icon:busIcon}).on('click',()=>filterRoutes(r)).addTo(busLayers[r])}
+			if(!routes[r]){routes[r]=0}
+			routes[r]++;
+			busMarkers[id].setLatLng([lat,lng]).bindPopup(`<b>Route ${r}</b> (#${id})<br>${dest}<br><span style="transform:rotate(${h}deg);display:inline-block;"><img src="/static/fontawesome/svgs/solid/arrow-up.svg" width=16 height=16></span> ${s}mph<br>${dir}<br>${t}`)
+		})
+		let overlayLayers={};
+		for(let r in routes){
+			overlayLayers[`${r.padStart(2,0)} | ${String(routes[r]).padStart(2,0)} vehicle(s)`]=busLayers[r]
+		}
+		layerControl.remove();layerControl=L.control.layers(null,overlayLayers).addTo(map)
+	})
+}
+updateMap();setInterval(updateMap,5000);
+map.on('click',()=>filterRoutes())
+
+let locationMarker=L.marker([0,0]).addTo(map);
+let locationRadius=L.circle([0,0]).addTo(map).bringToBack();
+map.locate({watch:true});
+map.on("locationfound",e=>{
+	locationMarker.setLatLng(e.latlng).bindPopup("<b>You</b> at<br>"+new Date().toLocaleTimeString());
+	if(e.accuracy<100)locationRadius.setLatLng(e.latlng).setRadius(e.accuracy/2)
+});
+	</script>
+</body>
+</html>
