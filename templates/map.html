@@ -6,8 +6,8 @@
 	<meta name="description" content="Watch the live locations of TARC vehicles and stops around Louisville">
 	<meta name="viewport" content="width=device-width,initial-scale=1">
 	<link rel="shortcut icon" href="static/bus.ico">
-	<script src="/static/leaflet/leaflet.js"></script>
-	<link rel="stylesheet" href="/static/leaflet/leaflet.css">
+	<script src="https://stevenalexander.org/static/leaflet/leaflet.js"></script>
+	<link rel="stylesheet" href="https://stevenalexander.org/static/leaflet/leaflet.css">
 	<base target="_blank">
 	<style>html,body{height:100%;margin:0;}#map{height:100vh;}table{white-space:nowrap;}.leaflet-popup-content:has(table){width:auto !important;}</style>
 </head>
@@ -15,16 +15,26 @@
 	<div id="map"></div>
 	<script>
 let map=L.map("map",{center:[38.22,-85.7],zoom:12,layers:[L.tileLayer("https://tile.thunderforest.com/transport/{z}/{x}/{y}.png?apikey=cf957cde4a7b40bbb49479c8fa4d60f7")]});
-let stops={{stops|safe}};
-for(let stop in stops){
-	stops[stop][0]=L.circle(stops[stop][0],stops[stop][2]?{color:'blue'}:{}).bindPopup(`${stops[stop][1]} (<a href=${stop}.csv>#${stop}</a>)`).on('click',()=>fetchStop(stop)).addTo(map)
-}
+let stops={},busLayers={},busMarkers={};
+fetch("stops.json").then(r=>r.json()).then(json=>{for(let stop in json){
+	stops[stop]=[];
+	stops[stop][0]=L.circle(json[stop][0],json[stop][2]?{color:'blue'}:{}).bindPopup(json[stop][1]).on('click',()=>fetchStop(stop)).addTo(map);
+	stops[stop][1]=json[stop][1]
+}})
 let busIcon=L.icon({iconUrl:"static/bus.ico",iconSize:[32,32]})
 let layerControl=L.control.layers().addTo(map);
-let busLayers={},busMarkers={};
-function filterRoutes(wanted){
+function filterRoute(wanted){
 	for(r in busLayers){
 		!wanted||wanted==r?map.addLayer(busLayers[r]):map.removeLayer(busLayers[r])
+	}
+	if(wanted){
+		fetch("stops."+wanted).then(response=>response.text()).then(txt=>{
+			const list=txt.split(",")
+			console.log(list)
+			for(s in stops){list.includes(s)?map.addLayer(stops[s][0]):map.removeLayer(stops[s][0])}
+		})
+	}else{
+		for(s in stops){map.addLayer(stops[s][0])}
 	}
 }
 function fetchStop(s){
@@ -42,9 +52,14 @@ function fetchStop(s){
 		for(let i=1;i<rows.length;i++){
 			const row=rows[i].split(',');
 			const tr=document.createElement('tr');
-			row.forEach(value=>{
+			row.forEach((value,j)=>{
 				const td=document.createElement('td');
 				td.textContent=value;
+				if(j==0){
+					td.setAttribute("onclick",`filterRoute(${value})`)
+					td.style.color="blue"
+					td.style.cursor="pointer"
+				}
 				tr.appendChild(td);
 			});
 			table.appendChild(tr);
@@ -54,12 +69,12 @@ function fetchStop(s){
 }
 function updateMap(){
 	let routes={};
-	fetch("tarc.csv").then(response=>response.text()).then(csv=>{
+	fetch("vehicles.csv").then(response=>response.text()).then(csv=>{
 		csv.split("\n").forEach(line=>{
 			let [lat,lng,r,id,dest,h,s,dir,t]=line.split(",");
 			t=new Date(t*1000).toLocaleTimeString("en-US",{hour12:false});
 			if(!busLayers[r]){busLayers[r]=L.layerGroup().addTo(map)}
-			if(!busMarkers[id]){busMarkers[id]=L.marker([0,0],{icon:busIcon}).on('click',()=>filterRoutes(r)).addTo(busLayers[r])}
+			if(!busMarkers[id]){busMarkers[id]=L.marker([0,0],{icon:busIcon}).on('click',()=>filterRoute(r)).addTo(busLayers[r])}
 			if(!routes[r]){routes[r]=0}
 			routes[r]++;
 			busMarkers[id].setLatLng([lat,lng]).bindPopup(`<b>Route ${r}</b> (#${id})<br>${dest}<br><span style="transform:rotate(${h}deg);display:inline-block;"><img src="/static/fontawesome/svgs/solid/arrow-up.svg" width=16 height=16></span> ${s}mph<br>${dir}<br>${t}`)
@@ -72,7 +87,7 @@ function updateMap(){
 	})
 }
 updateMap();setInterval(updateMap,5000);
-map.on('click',()=>filterRoutes())
+map.on('click',()=>filterRoute())
 
 let locationMarker=L.marker([0,0]).addTo(map);
 let locationRadius=L.circle([0,0]).addTo(map).bringToBack();
