@@ -19,7 +19,7 @@ def index():
 @cache.cached(timeout=5)
 def vehicles():
     d=httpx.get("https://tarc.rideralerts.com/InfoPoint/rest/Vehicles/GetAllVehiclesForRoutes?routeIDs=0,"+routes).json()
-    return "\n".join(f"{v['Latitude']},{v['Longitude']},{v['RouteId']},{v['Name']},{v['Destination']},{v['Heading']},{v['Speed']},{v['DirectionLong']},{v['LastUpdated'][6:16]}" for v in d)
+    return "\n".join(f"{v['Latitude']},{v['Longitude']},{v['RouteId']},{v['Name']},{v['Destination']},{v['Heading']},{v['Speed']},{v['DirectionLong']},{v['LastUpdated'][6:16]},{v['OnBoard']}" for v in d)
 
 @app.route("/stops.json")
 @cache.cached(timeout=444)

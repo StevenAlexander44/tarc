@@ -71,13 +71,14 @@ function updateMap(){
 	let routes={};
 	fetch("vehicles.csv").then(response=>response.text()).then(csv=>{
 		csv.split("\n").forEach(line=>{
-			let [lat,lng,r,id,dest,h,s,dir,t]=line.split(",");
+			let [lat,lng,r,id,dest,h,s,dir,t,o]=line.split(",");
 			t=new Date(t*1000).toLocaleTimeString("en-US",{hour12:false});
 			if(!busLayers[r]){busLayers[r]=L.layerGroup().addTo(map)}
 			if(!busMarkers[id]){busMarkers[id]=L.marker([0,0],{icon:busIcon}).on('click',()=>filterRoute(r)).addTo(busLayers[r])}
 			if(!routes[r]){routes[r]=0}
 			routes[r]++;
-			busMarkers[id].setLatLng([lat,lng]).bindPopup(`<b>Route ${r}</b> (#${id})<br>${dest}<br><span style="transform:rotate(${h}deg);display:inline-block;"><img src="/static/fontawesome/svgs/solid/arrow-up.svg" width=16 height=16></span> ${s}mph<br>${dir}<br>${t}`)
+			busMarkers[id].setLatLng([lat,lng])
+        .bindPopup(`<b>Route ${r}</b> (#${id})<br>${dest}<br><span style="transform:rotate(${h}deg);display:inline-block;"><img src="/static/fontawesome/svgs/solid/arrow-up.svg" width=16 height=16></span> ${s}mph<br>${dir}<br>${t}<br>On Board: ~${o}`)
 		})
 		let overlayLayers={};
 		for(let r in routes){
