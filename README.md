@@ -1,8 +1,5 @@
-# tarc
+# TARC
 
 Map the [TARC](https://www.ridetarc.org/) vehicles and stops around Louisville
 
-## Future:
-
-* include other [rideralerts.com](https://crt.sh/?q=rideralerts.com) subdomains
-* explore GTFS and maybe contribute to https://bimba.app
+[TARC now works with Transitous](https://github.com/public-transport/transitous/pull/2012)! I'm still using this project, but I've also started using [Bimba](https://bimba.app/).
