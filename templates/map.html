@@ -66,21 +66,18 @@ function fetchStop(s){
 	})
 }
 function updateMap(){
-	let routes={};
 	fetch("vehicles.csv").then(response=>response.text()).then(csv=>{
 		csv.split("\n").forEach(line=>{
 			let [lat,lng,r,id,dest,h,s,dir,t,o]=line.split(",");
 			t=new Date(t*1000).toLocaleTimeString("en-US",{hour12:false});
-			if(!busLayers[r]){busLayers[r]=L.layerGroup().addTo(map)}
-			if(!busMarkers[id]){busMarkers[id]=L.marker([0,0],{icon:L.icon({iconUrl:"static/shuttle.ico",iconSize:[32,32]})}).on('click',()=>filterRoute(r)).addTo(busLayers[r])}
-			if(!routes[r]){routes[r]=0}
-			routes[r]++;
+			if(!busLayers[r]){busLayers[r]=L.layerGroup().addTo(map);busMarkers[r]={}}
+			if(!busMarkers[r][id]){busMarkers[r][id]=L.marker([0,0],{icon:L.icon({iconUrl:"static/shuttle.ico",iconSize:[32,32]})}).on('click',()=>filterRoute(r)).addTo(busLayers[r])}
 			popupText=`<b>Route ${r}</b> (#${id})<br>${dest}<br><span style="transform:rotateZ(${h}deg);display:inline-block;"><img src="/static/fontawesome/svgs/solid/arrow-up.svg" width=16 height=16></span> ${s}mph<br>${dir}<br>${t}<br>On Board: ~${o}`;
-			busMarkers[id].setLatLng([lat,lng]).setRotationAngle(h).bindPopup(popupText)
+			busMarkers[r][id].setLatLng([lat,lng]).setRotationAngle(h).bindPopup(popupText)
 		})
 		let overlayLayers={};
-		for(let r in routes){
-			overlayLayers[`${r.padStart(2,0)} | ${String(routes[r]).padStart(2,0)} vehicle(s)`]=busLayers[r]
+		for(let r in busMarkers){
+			overlayLayers[`${r.padStart(2,0)} | ${String(Object.keys(busMarkers[r]).length).padStart(2,0)} vehicle(s)`]=busLayers[r]
 		}
 		layerControl.remove();layerControl=L.control.layers(null,overlayLayers).addTo(map)
 	})
